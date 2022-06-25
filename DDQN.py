@@ -1,6 +1,5 @@
 import gym
 import pickle
-import random
 import numpy as np
 import torch
 from torch import nn
@@ -8,36 +7,7 @@ import os
 import time
 import matplotlib.pyplot as plt
 from itertools import count
-
-device = "cuda" if torch.cuda.is_available() else "cpu"
-action_dimension = {'BoxingNoFrameskip-v4': 18, 'PongNoFrameskip-v4': 6,
-                    'BreakoutNoFrameskip-v4': 4, 'BowlingNoFrameskip-v4': 6,
-                    'BattleZoneNoFrameskip-v4': 18, 'AssaultNoFrameskip-v4': 7}
-
-
-def moving_average(x, x_smoothed, m=10):
-    alpha = 1 / (2 * m + 1)
-    for i, r in enumerate(x):
-        if i < m:
-            x_smoothed.append(np.sum(x[:i + m + 1]) * alpha + x[i] * (1 - alpha * (i + m + 1)))
-        elif i >= len(x) - m:
-            x_smoothed.append(np.sum(x[i - m:]) * alpha + x[i] * (1 - alpha * (len(x) - i + m)))
-        else:
-            x_smoothed.append(np.sum(x[i - m:i + m + 1]) * alpha)
-
-
-class Buffer:
-    def __init__(self, n):
-        self.buffer = []
-        self.n = n
-
-    def store(self, sars):
-        if len(self.buffer) > self.n:
-            self.buffer.pop(0)
-        self.buffer.append(sars)
-
-    def sample(self, m):
-        return random.sample(self.buffer, min(m, len(self.buffer)))
+from utilities import *
 
 
 class DQNet(nn.Module):
@@ -96,10 +66,7 @@ class DDQN():
         self.env_name = env
 
         # hyperparameters
-        if env in action_dimension:
-            self.action_dimension = action_dimension[env]
-        else:
-            raise NotImplemented
+        self.action_dimension = self.env.action_space.n
         self.buffer = Buffer(buffer_size)
         self.batch_size = batch_size
         self.total_step = total_step
@@ -204,10 +171,6 @@ class DDQN():
                     self.model_target.load_state_dict(self.model_update.state_dict())
 
                 if step % self.save_step == 0:
-                    with open(f'pickles/DDQN{"_dueling" if self.dueling else ""}_{self.env_name}_loss_{step}.pickle', 'wb') as f:
-                        pickle.dump(LOSS, f)
-                    with open(f'pickles/DDQN{"_dueling" if self.dueling else ""}_{self.env_name}_reward_{step}.pickle', 'wb') as f:
-                        pickle.dump(R_all, f)
                     with open(f'models/DDQN{"_dueling" if self.dueling else ""}_{self.env_name}_model_{step}.pickle', 'wb') as f:
                         pickle.dump(self.model_update.to('cpu'), f)
                         self.model_update.to(device)
@@ -232,7 +195,6 @@ class DDQN():
         plt.title(f'Rewards curve of DDQN {"with dueling architecture " if self.dueling else ""} on {self.env_name}')
         plt.grid(which='both')
         plt.savefig(f'figures/ddqn{"_dueling" if self.dueling else ""}_{self.env_name}.png', dpi=300)
-
 
     def eval(self, filename):
         with open(filename, 'rb') as f: self.model_update = pickle.load(f)
@@ -264,3 +226,10 @@ if __name__ == '__main__':
     ddqn.train()
     print(f'Training time: {time.time()-tic}s.')
 
+'''
+some suggested games and their action space
+
+BoxingNoFrameskip-v4: 18, PongNoFrameskip-v4: 6,
+BreakoutNoFrameskip-v4: 4, BowlingNoFrameskip-v4: 6,
+BattleZoneNoFrameskip-v4: 18, AssaultNoFrameskip-v4: 7
+'''

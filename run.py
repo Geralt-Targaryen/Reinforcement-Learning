@@ -11,7 +11,7 @@ parser.add_argument('--h', default=256, help='size of networks\' hidden layers',
 parser.add_argument('--weight_decay', default=1e-4, help='weight decay factor', type=float)
 parser.add_argument('--batch_size', default=128, help='batch size sampled from the buffer', type=int)
 # RL hyperparameters
-parser.add_argument('--type', choices=['policy', 'value'], default='policy', help='policy based or value based', type=str)
+parser.add_argument('--type', choices=['policy', 'value'], default='value', help='policy based or value based', type=str)
 parser.add_argument('--dueling', action='store_true', help='whether to use dueling architecture')
 parser.add_argument('--soft_update', action='store_true', help='whether to use soft update')
 parser.add_argument('--buffer_size', default=4096, help='buffer size', type=int)
@@ -36,17 +36,17 @@ def run():
             print('Please specified a model for evaluation, use python run.py --help for more info')
             return
         if args.type == 'policy':
-            ddpg = DDPG(args.env, args.env, h=args.h)
+            ddpg = DDPG(args.env)
             ddpg.eval(args.model)
         else:
-            ddqn = DDQN(args.env, args.env)
+            ddqn = DDQN(args.env)
             ddqn.eval(args.model)
 
     elif args.train:
         if args.type == 'policy':
-            ddpg = DDPG(args.env, args.lr_start, args.lr_end, args.batch_size,
-                        args.eps_start, args.eps_end, args.gamma, args.weight_decay,
-                        args.total_steps, args.save_steps, args.update_steps, args.h, args.buffer_size)
+            ddpg = DDPG(args.env, args.lr_start, args.lr_end, args.batch_size, args.eps_start, args.eps_end,
+                        args.gamma, args.weight_decay, args.total_steps, args.save_steps, args.h,
+                        args.buffer_size, args.soft_update, args.update_steps, args.tau)
             ddpg.train()
         else:
             ddqn = DDQN(args.env, args.lr_start, args.lr_end, args.batch_size, args.eps_start, args.eps_end,
