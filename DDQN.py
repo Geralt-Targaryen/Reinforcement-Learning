@@ -6,12 +6,24 @@ import torch
 from torch import nn
 import os
 import time
+import matplotlib.pyplot as plt
 from itertools import count
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 action_dimension = {'BoxingNoFrameskip-v4': 18, 'PongNoFrameskip-v4': 6,
                     'BreakoutNoFrameskip-v4': 4, 'BowlingNoFrameskip-v4': 6,
                     'BattleZoneNoFrameskip-v4': 18, 'AssaultNoFrameskip-v4': 7}
+
+
+def moving_average(x, x_smoothed, m=10):
+    alpha = 1 / (2 * m + 1)
+    for i, r in enumerate(x):
+        if i < m:
+            x_smoothed.append(np.sum(x[:i + m + 1]) * alpha + x[i] * (1 - alpha * (i + m + 1)))
+        elif i >= len(x) - m:
+            x_smoothed.append(np.sum(x[i - m:]) * alpha + x[i] * (1 - alpha * (len(x) - i + m)))
+        else:
+            x_smoothed.append(np.sum(x[i - m:i + m + 1]) * alpha)
 
 
 class Buffer:
@@ -113,6 +125,7 @@ class DDQN():
 
         os.makedirs('pickles', exist_ok=True)
         os.makedirs('models', exist_ok=True)
+        os.makedirs('figures', exist_ok=True)
 
     def train(self):
         R_all = []
@@ -125,7 +138,6 @@ class DDQN():
             s = torch.from_numpy(self.env.reset().reshape((1, -1))).float().to(device)
 
             for t in count():
-                self.env.render()
                 # get an action
                 a = self.model_update.get_action(s, eps)
                 # print(a)
@@ -208,6 +220,20 @@ class DDQN():
         pickle.dump(LOSS, open(f'pickles/DDQN{"_dueling" if self.dueling else ""}_{self.env_name}_loss.pickle', 'wb'))
         pickle.dump(self.model_update.to('cpu'), open(f'models/DDQN{"_dueling" if self.dueling else ""}_{self.env_name}_model.pickle', 'wb'))
 
+        # plot the rewards curve
+        R_smoothed = []
+        moving_average(R_all, R_smoothed)
+        color = 'darkorange'
+        x = range(len(R_all))
+        plt.plot(x, R_smoothed, color=color)
+        plt.plot(x, R_all, alpha=0.2, color=color)
+        plt.xlabel('Episode')
+        plt.ylabel('Reward per episode')
+        plt.title(f'Rewards curve of DDQN {"with dueling architecture " if self.dueling else ""} on {self.env_name}')
+        plt.grid(which='both')
+        plt.savefig(f'figures/ddqn{"_dueling" if self.dueling else ""}_{self.env_name}.png', dpi=300)
+
+
     def eval(self, filename):
         with open(filename, 'rb') as f: self.model_update = pickle.load(f)
         for episode in range(100):
@@ -234,5 +260,7 @@ class DDQN():
 
 if __name__ == '__main__':
     ddqn = DDQN(env='BoxingNoFrameskip-v4')
+    tic = time.time()
     ddqn.train()
+    print(f'Training time: {time.time()-tic}s.')
 
