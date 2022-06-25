@@ -61,7 +61,7 @@ class Actor(nn.Module):
 
 class DDPG():
 
-    def __init__(self, env, lr_start=5e-5, lr_end=5e-7, batch_size=128, eps_start=0.3, eps_end=0.01, gamma=0.99,
+    def __init__(self, env, lr_start=5e-5, lr_end=5e-7, batch_size=128, eps_start=0.2, eps_end=0.01, gamma=0.99,
                  weight_decay=1e-3, total_step=3000000, save_step=1000000, h=256, buffer_size=4096,
                  soft_update=False, update_step=1000, tau=0.05):
         self.env = gym.make(env)

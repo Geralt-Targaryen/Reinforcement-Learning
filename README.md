@@ -26,3 +26,22 @@ python run.py --env Humanoid-v2 --type policy --eval --model models/DDPG_actor_H
 # value-based
 python run.py --env BoxingNoFrameskip-v4 --type value --eval --model models/DQN_model_BoxingNoFrameskip-v4.pickle
 ```
+
+### Demo (to be updated)
+- Humanoid
+![](resource/humanoid.gif)
+- Ant
+![](resource/ant.gif)
+- Hopper
+![](resource/hopper.gif)
+- Half Cheetah
+![](resource/halfcheetah.gif)
+
+
+
+
+
+
+
+
+

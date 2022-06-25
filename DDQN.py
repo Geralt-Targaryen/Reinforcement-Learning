@@ -1,7 +1,6 @@
 import gym
 import pickle
 import numpy as np
-import torch
 from torch import nn
 import os
 import time
@@ -60,7 +59,7 @@ class DQNet(nn.Module):
 
 class DDQN():
     def __init__(self, env='BoxingNoFrameskip-v4', lr_start=5e-5, lr_end=1e-6, batch_size=128, eps_start=0.2, eps_end=0.05,
-                 gamma=0.99, weight_decay=1e-4, total_step=10000000, save_step=500000, h=256,
+                 gamma=0.99, weight_decay=1e-4, total_step=10000000, save_step=1000000, h=256,
                  buffer_size=4096, dueling=True, soft_update=False, update_step=4000, tau=0.05):
         self.env = gym.make(env, obs_type='ram')
         self.env_name = env
