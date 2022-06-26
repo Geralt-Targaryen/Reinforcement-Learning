@@ -29,12 +29,16 @@ python run.py --env BoxingNoFrameskip-v4 --type value --eval --model models/DQN_
 
 ### Demo (to be updated)
 - Humanoid
+
 ![](resource/humanoid.gif)
 - Ant
+
 ![](resource/ant.gif)
 - Hopper
+
 ![](resource/hopper.gif)
 - Half Cheetah
+
 ![](resource/halfcheetah.gif)
 
 

@@ -1,4 +1,3 @@
-import numpy as np
 from torch import nn
 import gym
 import pickle
@@ -11,21 +10,40 @@ from utilities import *
 
 class Critic(nn.Module):
 
-    def __init__(self, n0, n1, n2, n3, n4):
+    def __init__(self, dueling, n0, n1, n2, n3, n4, action_dimension):
         super(Critic, self).__init__()
-
-        self.net = nn.Sequential(
-            nn.Linear(n0, n1),
-            nn.ReLU(),
-            nn.Linear(n1, n2),
-            nn.ReLU(),
-            nn.Linear(n2, n3),
-            nn.ReLU(),
-            nn.Linear(n3, n4),
-        )
+        self.dueling = dueling
+        if not dueling:
+            self.net = nn.Sequential(
+                nn.Linear(n0, n1),
+                nn.ReLU(),
+                nn.Linear(n1, n2),
+                nn.ReLU(),
+                nn.Linear(n2, n3),
+                nn.ReLU(),
+                nn.Linear(n3, n4),
+            )
+        else:
+            self.net = nn.Sequential(
+                nn.Linear(n0, n1),
+                nn.ReLU(),
+                nn.Linear(n1, n2),
+                nn.ReLU(),
+                nn.Linear(n2, n3),
+                nn.ReLU(),
+            )
+            self.value = nn.Linear(n3, n4)
+            self.advantage = nn.Linear(n3, action_dimension)
 
     def forward(self, x):
-        return self.net(x)
+        if not self.dueling:
+            return self.net(x)
+        else:
+            h = self.net(x)
+            v = self.value(h)
+            a = self.advantage(h)
+            a = a - a.mean(dim=1).reshape((-1, 1))
+            return v + a
 
     def get_q(self, s, a):
         self.train()
@@ -62,7 +80,7 @@ class Actor(nn.Module):
 class DDPG():
 
     def __init__(self, env, lr_start=5e-5, lr_end=5e-7, batch_size=128, eps_start=0.2, eps_end=0.01, gamma=0.99,
-                 weight_decay=1e-3, total_step=3000000, save_step=1000000, h=256, buffer_size=4096,
+                 weight_decay=1e-3, total_step=3000000, save_step=1000000, h=256, buffer_size=4096, dueling=True,
                  soft_update=False, update_step=1000, tau=0.05):
         self.env = gym.make(env)
         self.env_name = env
@@ -81,11 +99,14 @@ class DDPG():
         self.soft_update = soft_update
         self.update_step = update_step
         self.tau = tau
+        self.dueling = dueling
         self.save_step = save_step
 
         # networks
-        self.c_update = Critic(n0=(self.action_dimension+self.state_dimension), n1=h, n2=h, n3=h, n4=1).to(device)
-        self.c_target = Critic(n0=(self.action_dimension+self.state_dimension), n1=h, n2=h, n3=h, n4=1).to(device)
+        self.c_update = Critic(dueling, n0=(self.action_dimension+self.state_dimension),
+                               n1=h, n2=h, n3=h, n4=1, action_dimension=self.action_dimension).to(device)
+        self.c_target = Critic(dueling, n0=(self.action_dimension+self.state_dimension),
+                               n1=h, n2=h, n3=h, n4=1, action_dimension=self.action_dimension).to(device)
         self.a_update = Actor(n0=self.state_dimension, n1=h, n2=h, n3=h, n4=self.action_dimension).to(device)
         self.a_target = Actor(n0=self.state_dimension, n1=h, n2=h, n3=h, n4=self.action_dimension).to(device)
 
@@ -203,10 +224,10 @@ class DDPG():
                     self.a_target.load_state_dict(self.a_update.state_dict())
 
                 if step % self.save_step == 0:
-                    with open(f'models/DDPG_{self.env_name}_critic_{step}.pickle', 'wb') as f:
+                    with open(f'models/DDPG{"_dueling" if self.dueling else ""}_{self.env_name}_critic_{step}.pickle', 'wb') as f:
                         pickle.dump(self.c_update.to('cpu'), f)
                         self.c_update.to(device)
-                    with open(f'models/DDPG_{self.env_name}_actor_{step}.pickle', 'wb') as f:
+                    with open(f'models/DDPG{"_dueling" if self.dueling else ""}_{self.env_name}_actor_{step}.pickle', 'wb') as f:
                         pickle.dump(self.a_update.to('cpu'), f)
                         self.a_update.to(device)
 
@@ -214,10 +235,10 @@ class DDPG():
             R_all.append(R_episode)
 
         self.env.close()
-        pickle.dump(R_all, open(f'pickles/DDPG_{self.env_name}_reward.pickle', 'wb'))
-        pickle.dump(LOSS, open(f'pickles/DDPG_{self.env_name}_loss.pickle', 'wb'))
-        pickle.dump(self.c_update.to('cpu'), open(f'models/DDPG_{self.env_name}_critic.pickle', 'wb'))
-        pickle.dump(self.a_update.to('cpu'), open(f'models/DDPG_{self.env_name}_actor.pickle', 'wb'))
+        pickle.dump(R_all, open(f'pickles/DDPG{"_dueling" if self.dueling else ""}_{self.env_name}_reward.pickle', 'wb'))
+        pickle.dump(LOSS, open(f'pickles/DDPG{"_dueling" if self.dueling else ""}_{self.env_name}_loss.pickle', 'wb'))
+        pickle.dump(self.c_update.to('cpu'), open(f'models/DDPG{"_dueling" if self.dueling else ""}_{self.env_name}_critic.pickle', 'wb'))
+        pickle.dump(self.a_update.to('cpu'), open(f'models/DDPG{"_dueling" if self.dueling else ""}_{self.env_name}_actor.pickle', 'wb'))
 
         # plot the rewards curve
         R_smoothed = []
@@ -228,9 +249,9 @@ class DDPG():
         plt.plot(x, R_all, alpha=0.2, color=color)
         plt.xlabel('Episode')
         plt.ylabel('Reward per episode')
-        plt.title(f'Rewards curve of DDPG on {self.env_name}')
+        plt.title(f'Rewards curve of{" dueling" if self.dueling else ""} DDPG on {self.env_name}')
         plt.grid(which='both')
-        plt.savefig(f'figures/ddpg_{self.env_name}.png', dpi=300)
+        plt.savefig(f'figures/ddpg{"_dueling" if self.dueling else ""}_{self.env_name}.png', dpi=300)
 
     def eval(self, filename):
         with open(filename, 'rb') as f: self.a_update = pickle.load(f)
@@ -253,7 +274,7 @@ class DDPG():
 
 
 if __name__ == '__main__':
-    ddpg = DDPG('HalfCheetah-v2')
+    ddpg = DDPG('HalfCheetah-v2', dueling=True)
     tic = time.time()
     ddpg.train()
     print(f'Training time: {time.time()-tic}s.')

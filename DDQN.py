@@ -1,6 +1,5 @@
 import gym
 import pickle
-import numpy as np
 from torch import nn
 import os
 import time

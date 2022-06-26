@@ -46,7 +46,7 @@ def run():
         if args.type == 'policy':
             ddpg = DDPG(args.env, args.lr_start, args.lr_end, args.batch_size, args.eps_start, args.eps_end,
                         args.gamma, args.weight_decay, args.total_steps, args.save_steps, args.h,
-                        args.buffer_size, args.soft_update, args.update_steps, args.tau)
+                        args.buffer_size, args.dueling, args.soft_update, args.update_steps, args.tau)
             ddpg.train()
         else:
             ddqn = DDQN(args.env, args.lr_start, args.lr_end, args.batch_size, args.eps_start, args.eps_end,
